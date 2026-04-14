@@ -1,47 +1,234 @@
 # MEDS-Extract Event Mapping Configuration (MESSY file)
-# For K-MIMIC Synthetic ICU dataset
+# K-MIMIC Synthetic SYN-ICU dataset
 #
-# This file will be completed once the K-MIMIC table structure is known.
-# Reference: https://medical-event-data-standard.github.io/docs/tutorials/kdd2025/converting_to_MEDS
+# Conventions:
+#   col(X)      → valeur de la colonne X de la table source
+#   string fixe → littéral texte inclus dans le code MEDS
+#   //          → séparateur hiérarchique dans les codes MEDS
+#
+# Les tables ont déjà été transformées par pre_meds.py :
+#   - subject_id / hadm_id / stay_id : int64 (depuis UUID)
+#   - timestamps : parsed en datetime
+#   - year_of_birth : string "%Y" calculé depuis anchor_year - anchor_age
+#   - procedures_icd.chartdate : résolu à 23:59:59
 
 subject_id_col: subject_id
 
-# --- To be filled after K-MIMIC schema exploration ---
-# Example structure (based on MIMIC-IV mapping):
-#
-# patients:
-#   birth:
-#     code: MEDS_BIRTH
-#     time: col(birth_date)
-#     time_format: "%Y-%m-%d"
-#   death:
-#     code: MEDS_DEATH
-#     time: col(death_date)
-#     time_format: "%Y-%m-%d %H:%M:%S"
-#   gender:
-#     code: col(gender)
-#     time: null
-#
-# icu_stays:
-#   admission:
-#     code:
-#       - ICU_ADMISSION
-#       - col(care_unit)
-#     time: col(intime)
-#     time_format: "%Y-%m-%d %H:%M:%S"
-#   discharge:
-#     code:
-#       - ICU_DISCHARGE
-#       - col(care_unit)
-#     time: col(outtime)
-#     time_format: "%Y-%m-%d %H:%M:%S"
-#
-# chart_events:
-#   chartevent:
-#     code:
-#       - CHARTEVENT
-#       - col(item_id)
-#       - col(unit)
-#     time: col(chart_time)
-#     time_format: "%Y-%m-%d %H:%M:%S"
-#     numeric_value: value_num
+# ─────────────────────────────────────────────
+# CORE : PATIENTS
+# ─────────────────────────────────────────────
+syn_patients:
+  birth:
+    code: MEDS_BIRTH
+    time: col(year_of_birth)
+    time_format: "%Y"
+
+  death:
+    code: MEDS_DEATH
+    time: col(dod)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+  gender:
+    code:
+      - GENDER
+      - col(sex)
+    time: null
+
+# ─────────────────────────────────────────────
+# CORE : ADMISSIONS
+# ─────────────────────────────────────────────
+syn_admissions:
+  admission:
+    code:
+      - HOSPITAL_ADMISSION
+      - col(admission_type)
+      - col(admission_location)
+    time: col(admittime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: hadm_id
+
+  insurance:
+    code:
+      - INSURANCE
+      - col(insurance)
+    time: col(admittime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+  marital_status:
+    code:
+      - MARITAL_STATUS
+      - col(marital_status)
+    time: col(admittime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+  ethnicity:
+    code:
+      - ETHNICITY
+      - col(ethnicity)
+    time: col(admittime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+  discharge:
+    code:
+      - HOSPITAL_DISCHARGE
+      - col(discharge_location)
+    time: col(dischtime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: hadm_id
+
+  death:
+    # prend le pas sur le dod de syn_patients (résolution plus précise)
+    code: MEDS_DEATH
+    time: col(deathtime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+  ed_registration:
+    code: ED_REGISTRATION
+    time: col(edregtime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+  ed_out:
+    code: ED_OUT
+    time: col(edouttime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+# ─────────────────────────────────────────────
+# CORE : TRANSFERS
+# ─────────────────────────────────────────────
+syn_transfers:
+  transfer_in:
+    code:
+      - TRANSFER_IN
+      - col(careunit)
+      - col(eventtype)
+    time: col(intime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+# ─────────────────────────────────────────────
+# ICU : ICUSTAYS
+# ─────────────────────────────────────────────
+syn_icustays:
+  icu_admission:
+    code:
+      - ICU_ADMISSION
+      - col(first_careunit)
+    time: col(intime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    stay_id: stay_id
+
+  icu_discharge:
+    code:
+      - ICU_DISCHARGE
+      - col(last_careunit)
+    time: col(outtime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    stay_id: stay_id
+
+# ─────────────────────────────────────────────
+# ICU : CHARTEVENTS
+# ─────────────────────────────────────────────
+syn_chartevents:
+  chartevent:
+    code:
+      - CHARTEVENT
+      - col(itemid)
+      - col(valueuom)
+    time: col(charttime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    numeric_value: valuenum
+
+# ─────────────────────────────────────────────
+# ICU : INPUTEVENTS
+# ─────────────────────────────────────────────
+syn_inputevents:
+  input_start:
+    code:
+      - INPUT_START
+      - col(itemid)
+      - col(amountuom)
+    time: col(starttime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    numeric_value: amount
+
+# ─────────────────────────────────────────────
+# ICU : OUTPUTEVENTS
+# ─────────────────────────────────────────────
+syn_outputevents:
+  outputevent:
+    code:
+      - OUTPUT
+      - col(itemid)
+      - col(valueuom)
+    time: col(charttime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    numeric_value: value
+
+# ─────────────────────────────────────────────
+# ICU : PROCEDUREEVENTS
+# ─────────────────────────────────────────────
+syn_procedureevents:
+  procedure_start:
+    code:
+      - PROCEDURE_START
+      - col(itemid)
+    time: col(starttime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+  procedure_end:
+    code:
+      - PROCEDURE_END
+      - col(itemid)
+    time: col(endtime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+# ─────────────────────────────────────────────
+# HOSP : LABEVENTS
+# ─────────────────────────────────────────────
+syn_labevents:
+  labevent:
+    code:
+      - LAB
+      - col(itemid)
+      - col(valueuom)
+    time: col(charttime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    numeric_value: valuenum
+
+# ─────────────────────────────────────────────
+# HOSP : DIAGNOSES_ICD
+# ─────────────────────────────────────────────
+syn_diagnoses_icd:
+  diagnosis:
+    code:
+      - DIAGNOSIS
+      - col(icd_version)
+      - col(icd_code)
+    time: null
+    seq_num: seq_num
+    is_icu: is_icu
+
+# ─────────────────────────────────────────────
+# HOSP : PROCEDURES_ICD
+# (chartdate résolu à 23:59:59 par pre_meds.py)
+# ─────────────────────────────────────────────
+syn_procedures_icd:
+  procedure_icd:
+    code:
+      - PROCEDURE_ICD
+      - col(icd_version)
+      - col(icd_code)
+    time: col(chartdate)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    seq_num: seq_num
+
+# ─────────────────────────────────────────────
+# HOSP : EMAR (administrations médicaments)
+# ─────────────────────────────────────────────
+syn_emar:
+  medication_admin:
+    code:
+      - MEDICATION
+      - col(itemid)
+    time: col(charttime)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    event_txt: event_txt
