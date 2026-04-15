@@ -430,10 +430,6 @@ def extract_emar(df):
 # ---------------------------------------------------------------------------
 
 def build_codes_parquet(events_df, intermediate_dir=None):
-    """
-    Builds codes.parquet with the list of unique codes.
-    Enriches with descriptions from syn_d_items and syn_d_labitems if available.
-    """
     codes = sorted(events_df["code"].dropna().unique())
     df = pd.DataFrame({
         "code": codes,
@@ -443,15 +439,32 @@ def build_codes_parquet(events_df, intermediate_dir=None):
 
     if intermediate_dir is not None:
         label_map = {}
-        for fname in ["syn_d_items.parquet", "syn_d_labitems.parquet"]:
-            path = intermediate_dir / fname
-            if path.exists():
-                dim = pd.read_parquet(path)
-                for _, r in dim.iterrows():
-                    itemid = str(r.get("itemid", "")).strip()
-                    label = str(r.get("label", "")).strip()
-                    if itemid and label and itemid not in _EMPTY and label not in _EMPTY:
+        edi_map = {}
+
+        # syn_d_labitems — labels + codes EDI
+        d_lab_path = intermediate_dir / "syn_d_labitems.parquet"
+        if d_lab_path.exists():
+            d_lab = pd.read_parquet(d_lab_path)
+            for _, r in d_lab.iterrows():
+                itemid = str(r.get("itemid", "")).strip()
+                label = str(r.get("label", "")).strip()
+                edi = str(r.get("edi_code", "")).strip()
+                if itemid and itemid not in _EMPTY:
+                    if label and label not in _EMPTY:
                         label_map[itemid] = label
+                    if edi and edi not in _EMPTY and edi != "KMM90000":
+                        # KMM90000 = generic "non-billed" code, not useful
+                        edi_map[itemid] = f"EDI/{edi}"
+
+        # syn_d_items — labels only (no external ontology)
+        d_items_path = intermediate_dir / "syn_d_items.parquet"
+        if d_items_path.exists():
+            d_items = pd.read_parquet(d_items_path)
+            for _, r in d_items.iterrows():
+                itemid = str(r.get("itemid", "")).strip()
+                label = str(r.get("label", "")).strip()
+                if itemid and label and itemid not in _EMPTY and label not in _EMPTY:
+                    label_map[itemid] = label
 
         def find_description(code):
             parts = code.split("//")
@@ -459,7 +472,16 @@ def build_codes_parquet(events_df, intermediate_dir=None):
                 return label_map.get(parts[1])
             return None
 
+        def find_parent_codes(code):
+            parts = code.split("//")
+            if len(parts) >= 2:
+                edi = edi_map.get(parts[1])
+                if edi:
+                    return [edi]
+            return None
+
         df["description"] = df["code"].apply(find_description)
+        df["parent_codes"] = df["code"].apply(find_parent_codes)
 
     return df
 
