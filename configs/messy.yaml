@@ -2,21 +2,21 @@
 # K-MIMIC Synthetic SYN-ICU dataset
 #
 # Conventions:
-#   col(X)      → valeur de la colonne X de la table source
-#   string fixe → littéral texte inclus dans le code MEDS
-#   //          → séparateur hiérarchique dans les codes MEDS
+#   col(X)       → value from column X of the source table
+#   fixed string → text literal included in the MEDS code
+#   //           → hierarchical separator in MEDS codes
 #
-# Les tables ont déjà été transformées par pre_meds.py :
-#   - subject_id / hadm_id / stay_id : int64 (depuis UUID)
-#   - timestamps : parsed en datetime
-#   - year_of_birth : string "%Y" calculé depuis anchor_year - anchor_age
-#   - procedures_icd.chartdate : résolu à 23:59:59
+# Tables have already been transformed by pre_meds.py:
+#   - subject_id / hadm_id / stay_id: int64 (from UUID)
+#   - timestamps: parsed as datetime
+#   - year_of_birth: string "%Y" calculated from anchor_year - anchor_age
+#   - procedures_icd.chartdate: resolved to 23:59:59
 
 subject_id_col: subject_id
 
-# ─────────────────────────────────────────────
-# CORE : PATIENTS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# CORE: PATIENTS
+# ---------------------------------------------
 syn_patients:
   birth:
     code: MEDS_BIRTH
@@ -34,9 +34,9 @@ syn_patients:
       - col(sex)
     time: null
 
-# ─────────────────────────────────────────────
-# CORE : ADMISSIONS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# CORE: ADMISSIONS
+# ---------------------------------------------
 syn_admissions:
   admission:
     code:
@@ -77,7 +77,7 @@ syn_admissions:
     hadm_id: hadm_id
 
   death:
-    # prend le pas sur le dod de syn_patients (résolution plus précise)
+    # takes precedence over syn_patients dod (higher precision resolution)
     code: MEDS_DEATH
     time: col(deathtime)
     time_format: "%Y-%m-%d %H:%M:%S"
@@ -92,9 +92,9 @@ syn_admissions:
     time: col(edouttime)
     time_format: "%Y-%m-%d %H:%M:%S"
 
-# ─────────────────────────────────────────────
-# CORE : TRANSFERS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# CORE: TRANSFERS
+# ---------------------------------------------
 syn_transfers:
   transfer_in:
     code:
@@ -104,9 +104,9 @@ syn_transfers:
     time: col(intime)
     time_format: "%Y-%m-%d %H:%M:%S"
 
-# ─────────────────────────────────────────────
-# ICU : ICUSTAYS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# ICU: ICUSTAYS
+# ---------------------------------------------
 syn_icustays:
   icu_admission:
     code:
@@ -124,9 +124,9 @@ syn_icustays:
     time_format: "%Y-%m-%d %H:%M:%S"
     stay_id: stay_id
 
-# ─────────────────────────────────────────────
-# ICU : CHARTEVENTS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# ICU: CHARTEVENTS
+# ---------------------------------------------
 syn_chartevents:
   chartevent:
     code:
@@ -137,9 +137,9 @@ syn_chartevents:
     time_format: "%Y-%m-%d %H:%M:%S"
     numeric_value: valuenum
 
-# ─────────────────────────────────────────────
-# ICU : INPUTEVENTS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# ICU: INPUTEVENTS
+# ---------------------------------------------
 syn_inputevents:
   input_start:
     code:
@@ -150,9 +150,9 @@ syn_inputevents:
     time_format: "%Y-%m-%d %H:%M:%S"
     numeric_value: amount
 
-# ─────────────────────────────────────────────
-# ICU : OUTPUTEVENTS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# ICU: OUTPUTEVENTS
+# ---------------------------------------------
 syn_outputevents:
   outputevent:
     code:
@@ -163,9 +163,9 @@ syn_outputevents:
     time_format: "%Y-%m-%d %H:%M:%S"
     numeric_value: value
 
-# ─────────────────────────────────────────────
-# ICU : PROCEDUREEVENTS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# ICU: PROCEDUREEVENTS
+# ---------------------------------------------
 syn_procedureevents:
   procedure_start:
     code:
@@ -181,9 +181,9 @@ syn_procedureevents:
     time: col(endtime)
     time_format: "%Y-%m-%d %H:%M:%S"
 
-# ─────────────────────────────────────────────
-# HOSP : LABEVENTS
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# HOSP: LABEVENTS
+# ---------------------------------------------
 syn_labevents:
   labevent:
     code:
@@ -194,9 +194,9 @@ syn_labevents:
     time_format: "%Y-%m-%d %H:%M:%S"
     numeric_value: valuenum
 
-# ─────────────────────────────────────────────
-# HOSP : DIAGNOSES_ICD
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# HOSP: DIAGNOSES_ICD
+# ---------------------------------------------
 syn_diagnoses_icd:
   diagnosis:
     code:
@@ -207,10 +207,10 @@ syn_diagnoses_icd:
     seq_num: seq_num
     is_icu: is_icu
 
-# ─────────────────────────────────────────────
-# HOSP : PROCEDURES_ICD
-# (chartdate résolu à 23:59:59 par pre_meds.py)
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# HOSP: PROCEDURES_ICD
+# (chartdate resolved to 23:59:59 by pre_meds.py)
+# ---------------------------------------------
 syn_procedures_icd:
   procedure_icd:
     code:
@@ -221,9 +221,9 @@ syn_procedures_icd:
     time_format: "%Y-%m-%d %H:%M:%S"
     seq_num: seq_num
 
-# ─────────────────────────────────────────────
-# HOSP : EMAR (administrations médicaments)
-# ─────────────────────────────────────────────
+# ---------------------------------------------
+# HOSP: EMAR (medication administration)
+# ---------------------------------------------
 syn_emar:
   medication_admin:
     code:
