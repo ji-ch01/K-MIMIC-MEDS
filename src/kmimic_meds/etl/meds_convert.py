@@ -181,6 +181,7 @@ def to_meds_df(df, subject_col="subject_id", time_col="time",
 # ---------------------------------------------------------------------------
 
 def extract_patients(df):
+    df = df[df["subject_id"].notna()].copy()
     results = []
 
     # --- birth ---
