@@ -46,10 +46,16 @@ def build_all_id_maps(raw: dict) -> tuple:
                 stay_uuids.update(df[col].dropna().unique())
 
     subject_map = {v: uuid_to_int(v) for v in subject_uuids}
-    hadm_map = {v: uuid_to_int(v) for v in hadm_uuids}
-    stay_map = {v: uuid_to_int(v) for v in stay_uuids}
+    hadm_map    = {v: uuid_to_int(v) for v in hadm_uuids}
+    stay_map    = {v: uuid_to_int(v) for v in stay_uuids}
 
-    print(f"  ID maps: {len(subject_map)} subjects, {len(hadm_map)} hadm, {len(stay_map)} stays")
+    # Verify no SHA-256 collision after UUID -> int64 conversion
+    for name, id_map in [("subject", subject_map), ("hadm", hadm_map), ("stay", stay_map)]:
+        int_ids = list(id_map.values())
+        assert len(int_ids) == len(set(int_ids)), \
+            f"SHA-256 int64 collision detected in {name} ID mapping ({len(int_ids)} UUIDs, {len(set(int_ids))} unique ints)"
+
+    print(f"  ID maps: {len(subject_map)} subjects, {len(hadm_map)} hadm, {len(stay_map)} stays — no collisions")
     return subject_map, hadm_map, stay_map
 
 

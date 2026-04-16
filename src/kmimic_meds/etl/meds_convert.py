@@ -58,8 +58,8 @@ _EMPTY = {"", "nan", "None", "UNK", "NaN", "none", "null", "NULL"}
 
 # Mapping of Korean/non-standard units to standard equivalents
 UNIT_MAP = {
-    "회/min": "/min",
-    "회/분": "/min",
+    "회/min": "per_min",
+    "회/분": "per_min",
     "℃": "Cel",
     "㎍/dL": "ug/dL",
     "㎍/mL": "ug/mL",
@@ -77,9 +77,9 @@ UNIT_MAP = {
     "μmol/L": "umol/L",
     "μU/mL": "uU/mL",
     "㎕": "uL",
-    "/㎕": "/uL",
+    "/㎕": "per_uL",
     "μℓ": "uL",
-    "/μℓ": "/uL",
+    "/μℓ": "per_uL",
     "×10^6/㎕": "x10e6/uL",
     "×10³/㎕": "x10e3/uL",
     "×10^3/㎕": "x10e3/uL",

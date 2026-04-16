@@ -2,6 +2,12 @@
 data/raw/
 data/intermediate/
 data/output/
+data/raw/
+data/intermediate/
+data/output/
+outputs/
+*.parquet
+*.xlsx
 
 # Python
 __pycache__/
