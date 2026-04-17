@@ -28,10 +28,10 @@ The ETL code is packaged as a Python package (`kmimic_meds`) intended for public
 
 ## Data Sources
 
-| Source | Description |
-|--------|-------------|
-| [Synthetic K-MIMIC (SYN-ICU)](https://khdp.net/database/data-search-detail/SYN-ICU) | Synthetic Korean ICU dataset published by KHDP |
-| [MIMIC-IV-MEDS](https://physionet.org/content/mimic-iv-demo-meds/0.0.1/) | Reference MEDS conversion of MIMIC-IV (used as model) |
+| Source                                                                              | Description                                           |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| [Synthetic K-MIMIC (SYN-ICU)](https://khdp.net/database/data-search-detail/SYN-ICU) | Synthetic Korean ICU dataset published by KHDP        |
+| [MIMIC-IV-MEDS](https://physionet.org/content/mimic-iv-demo-meds/0.0.1/)            | Reference MEDS conversion of MIMIC-IV (used as model) |
 
 > Raw K-MIMIC data is **not included** in this repository. Download it from the KHDP portal and place the `.xlsx` files under `data/raw/`.
 
@@ -86,6 +86,7 @@ pip install openpyxl
 Download the Synthetic K-MIMIC dataset from [KHDP](https://khdp.net/database/data-search-detail/SYN-ICU) and place all `.xlsx` files under `data/raw/`.
 
 Expected files:
+
 ```
 data/raw/
 ├── syn_admissions.xlsx
@@ -116,6 +117,7 @@ python src/kmimic_meds/etl/pre_meds.py \
 ```
 
 What it does:
+
 - Reads all 15 `.xlsx` source tables
 - Converts UUID string IDs to stable `int64` via SHA-256 hashing (collision-free verified)
 - Parses and normalizes timestamps (including mixed date/datetime formats)
@@ -135,6 +137,7 @@ python src/kmimic_meds/etl/meds_convert.py \
 ```
 
 What it does:
+
 - Extracts MEDS events from each source table (vectorized, ~7s total)
 - Normalizes Korean and non-standard units to international equivalents
 - Links diagnoses to admission timestamps via `hadm_id` join
@@ -187,54 +190,56 @@ data/output/
 
 Each row in the data files follows the MEDS schema:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `subject_id` | `int64` | Unique patient identifier |
-| `time` | `timestamp[us]` | Timestamp of the event (`null` for static events) |
-| `code` | `string` | Event code (e.g. `CHARTEVENT//001C_102//mmHg`, `MEDS_BIRTH`) |
-| `numeric_value` | `float32` | Numeric value if applicable, otherwise `null` |
+| Column          | Type            | Description                                                  |
+| --------------- | --------------- | ------------------------------------------------------------ |
+| `subject_id`    | `int64`         | Unique patient identifier                                    |
+| `time`          | `timestamp[us]` | Timestamp of the event (`null` for static events)            |
+| `code`          | `string`        | Event code (e.g. `CHARTEVENT//001C_102//mmHg`, `MEDS_BIRTH`) |
+| `numeric_value` | `float32`       | Numeric value if applicable, otherwise `null`                |
 
 ### Event types and codes
 
-| Prefix | Source table | Example code |
-|--------|-------------|--------------|
-| `MEDS_BIRTH` | `syn_patients` | `MEDS_BIRTH` |
-| `MEDS_DEATH` | `syn_patients` | `MEDS_DEATH` |
-| `GENDER` | `syn_patients` (static) | `GENDER//M` |
-| `HOSPITAL_ADMISSION` | `syn_admissions` | `HOSPITAL_ADMISSION//Emergency department` |
-| `HOSPITAL_DISCHARGE` | `syn_admissions` | `HOSPITAL_DISCHARGE//Home` |
-| `ICU_ADMISSION` | `syn_icustays` | `ICU_ADMISSION//RICU` |
-| `ICU_DISCHARGE` | `syn_icustays` | `ICU_DISCHARGE//RICU` |
-| `CHARTEVENT` | `syn_chartevents` | `CHARTEVENT//001C_1021_25105///min` |
-| `LAB` | `syn_labevents` | `LAB//001L3005//mg/dL` |
-| `DIAGNOSIS` | `syn_diagnoses_icd` | `DIAGNOSIS//KCD8//I251` |
-| `PROCEDURE_ICD` | `syn_procedures_icd` | `PROCEDURE_ICD//KCD8//54.11` |
-| `PROCEDURE_START` | `syn_procedureevents` | `PROCEDURE_START//001P_OPFG130303` |
-| `PROCEDURE_END` | `syn_procedureevents` | `PROCEDURE_END//001P_OPFG130303` |
-| `INPUT_START` | `syn_inputevents` | `INPUT_START//001I_1315//cc` |
-| `OUTPUT` | `syn_outputevents` | `OUTPUT//001O_148//cc` |
-| `MEDICATION` | `syn_emar` | `MEDICATION//12005122` |
+| Prefix               | Source table            | Example code                               |
+| -------------------- | ----------------------- | ------------------------------------------ |
+| `MEDS_BIRTH`         | `syn_patients`          | `MEDS_BIRTH`                               |
+| `MEDS_DEATH`         | `syn_patients`          | `MEDS_DEATH`                               |
+| `GENDER`             | `syn_patients` (static) | `GENDER//M`                                |
+| `HOSPITAL_ADMISSION` | `syn_admissions`        | `HOSPITAL_ADMISSION//Emergency department` |
+| `HOSPITAL_DISCHARGE` | `syn_admissions`        | `HOSPITAL_DISCHARGE//Home`                 |
+| `ICU_ADMISSION`      | `syn_icustays`          | `ICU_ADMISSION//RICU`                      |
+| `ICU_DISCHARGE`      | `syn_icustays`          | `ICU_DISCHARGE//RICU`                      |
+| `CHARTEVENT`         | `syn_chartevents`       | `CHARTEVENT//001C_1021_25105///min`        |
+| `LAB`                | `syn_labevents`         | `LAB//001L3005//mg/dL`                     |
+| `DIAGNOSIS`          | `syn_diagnoses_icd`     | `DIAGNOSIS//KCD8//I251`                    |
+| `PROCEDURE_ICD`      | `syn_procedures_icd`    | `PROCEDURE_ICD//KCD8//54.11`               |
+| `PROCEDURE_START`    | `syn_procedureevents`   | `PROCEDURE_START//001P_OPFG130303`         |
+| `PROCEDURE_END`      | `syn_procedureevents`   | `PROCEDURE_END//001P_OPFG130303`           |
+| `INPUT_START`        | `syn_inputevents`       | `INPUT_START//001I_1315//cc`               |
+| `OUTPUT`             | `syn_outputevents`      | `OUTPUT//001O_148//cc`                     |
+| `MEDICATION`         | `syn_emar`              | `MEDICATION//12005122`                     |
 
 ### Dataset statistics (SYN-ICU)
 
-| Metric | Value |
-|--------|-------|
-| Total events | 1,381,580 |
-| Total patients | 1,328 |
-| Static events (time = null) | 1,328 |
-| Dynamic events | 1,380,252 |
-| Events with numeric value | 605,941 |
-| Unique codes | 204 |
-| Codes with description | 113 |
-| Codes with EDI parent codes | 32 |
-| Train patients | 1,062 (80%) |
-| Tuning patients | 132 (10%) |
-| Held-out patients | 134 (10%) |
-| Pipeline runtime | ~7s |
+| Metric                      | Value       |
+| --------------------------- | ----------- |
+| Total events                | 1,381,580   |
+| Total patients              | 1,328       |
+| Static events (time = null) | 1,328       |
+| Dynamic events              | 1,380,252   |
+| Events with numeric value   | 605,941     |
+| Unique codes                | 204         |
+| Codes with description      | 113         |
+| Codes with EDI parent codes | 32          |
+| Train patients              | 1,062 (80%) |
+| Tuning patients             | 132 (10%)   |
+| Held-out patients           | 134 (10%)   |
+| Pipeline runtime            | ~7s         |
 
 ---
 
 ## Key Design Decisions
+
+**Alignment with MEDS KDD 2025 tutorial:** The pipeline follows the conceptual framework from the official [MEDS "Converting to MEDS" tutorial (KDD 2025)](https://medical-event-data-standard.github.io/docs/tutorials/kdd2025/converting_to_MEDS) — two-step Pre-MEDS + conversion approach, `//` code separator, date-only timestamp resolution, and `deathtime` priority over `dod` are all directly aligned with the tutorial's recommendations.
 
 **UUID → int64 conversion:** K-MIMIC uses UUID strings for all identifiers. MEDS requires `int64`. We use SHA-256 hashing to produce stable, positive int64 values. Uniqueness is verified after conversion with an assertion — for 1,328 patients the birthday bound is ~2³¹, making collisions negligible. The stateless approach requires no central mapping table and works identically across all 15 source tables.
 
