@@ -4,6 +4,7 @@ data/intermediate/
 data/output/
 data/raw/
 data/intermediate/
+data/labels
 data/output/
 outputs/
 *.parquet
