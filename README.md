@@ -19,6 +19,7 @@ This repository provides a **standalone ETL pipeline** (no MEDS-Extract CLI requ
 1. Cleans and transforms raw K-MIMIC `.xlsx` tables into intermediate Parquet files (`pre_meds.py`)
 2. Converts those Parquet files into a fully MEDS-compliant dataset (`meds_convert.py`)
 3. Validates the output with a Jupyter notebook (`validation.ipynb`) and a CLI script (`validate.py`)
+4. Extracts binary task labels in MEDS-DEV format (`extract_labels.py`)
 
 The ETL code is packaged as a Python package (`kmimic_meds`) intended for publication on PyPI.
 
@@ -49,7 +50,8 @@ K-MIMIC-MEDS/
 ├── data/
 │   ├── raw/                    # Raw K-MIMIC .xlsx files (not versioned)
 │   ├── intermediate/           # Pre-MEDS Parquet files (not versioned)
-│   └── output/                 # Final MEDS-compliant dataset (not versioned)
+│   ├── output/                 # Final MEDS-compliant dataset (not versioned)
+│   └── labels/                 # Extracted task labels in MEDS-DEV format (not versioned)
 ├── src/
 │   └── kmimic_meds/
 │       ├── etl/
@@ -59,9 +61,9 @@ K-MIMIC-MEDS/
 │           └── io.py
 ├── tests/
 │   └── test_meds_convert.py    # 71 unit tests
-├── validation.ipynb            # Validation notebook (24/24 checks)
+├── validation.ipynb            # Validation notebook (24/24 checks + 3 extended sections)
 ├── validate.py                 # CLI validation script (46/46 checks)
-├── LICENSE                     # MIT License
+├── extract_labels.py           # Label extraction — in-hospital mortality 24h (MEDS-DEV format)
 ├── pyproject.toml
 └── README.md
 ```
@@ -154,7 +156,10 @@ pip install notebook
 jupyter notebook validation.ipynb
 ```
 
-Expected result: **24/24 checks passed**.
+Expected result: **24/24 checks passed** (core summary), plus three extended validation sections:
+- §20 Source-to-MEDS coverage table (15 source tables audited)
+- §21 Code overlap analysis (204 exact codes, 20 families, 32 EDI parent codes; set `MIMIC_MEDS_DIR` to run cross-cohort comparison)
+- §22 Tensorisation timestamp smoke test (datetime64[us] round-trip verified, 74% of events have year > 2262)
 
 **Option B — CLI script** (fast, for CI):
 
@@ -171,6 +176,35 @@ pytest tests/test_meds_convert.py -v
 ```
 
 Expected result: **71/71 tests passed**.
+
+### Step 5 — Extract task labels
+
+Extracts binary mortality labels in [MEDS-DEV](https://github.com/Medical-Event-Data-Standard/meds_evaluation) compatible format.
+
+```bash
+python extract_labels.py
+```
+
+Two candidate tasks are evaluated; **in-hospital mortality** is selected as the primary task:
+
+| Task | Cohort | Positives | Prevalence | Selected |
+|---|---|---|---|---|
+| `icu_mortality_24h` | 522 | 2 | 0.4% | No — too sparse |
+| `inhospital_mortality_24h` | 957 | 81 | 8.5% | **Yes** |
+
+**Definition:** prediction at hospital admission + 24h; label = `MEDS_DEATH` before `HOSPITAL_DISCHARGE`. Patients discharged or deceased within 24h of admission are excluded.
+
+Output:
+
+```
+data/labels/
+└── inhospital_mortality_24h/
+    ├── train/0.parquet     ← 767 patients, 67 positives (8.7%)
+    ├── tuning/0.parquet    ← 88 patients,   6 positives (6.8%)
+    └── held_out/0.parquet  ← 102 patients,  8 positives (7.8%)
+```
+
+Each file contains: `subject_id (int64)` | `prediction_time (timestamp[us])` | `boolean_value (bool)`.
 
 ---
 
@@ -266,6 +300,8 @@ Each row in the data files follows the MEDS schema:
 **`MEDS_DEATH` temporal precision:** The `dod` field in K-MIMIC is stored as a date only (midnight, `00:00:00`). When `admissions.deathtime` is available (88 out of 88 deceased patients), the pipeline uses that field instead, providing hour-level precision. For patients where `deathtime` is absent, `dod` midnight is used as a fallback. The temporal consistency check applies a 48-hour tolerance window and excludes `PROCEDURE_START`/`PROCEDURE_END` events, which are a known artifact of the synthetic data generation process.
 
 **Missing `MEDS_BIRTH` events:** 79 out of 1,328 patients have no `MEDS_BIRTH` event because `anchor_age` is `NaN` in the source `syn_patients` table — making it impossible to compute `year_of_birth`. These patients are fully retained in the dataset with all their other events (79,165 total).
+
+**Label sparsity in smaller splits:** The in-hospital mortality task has 6 positives in the tuning split and 8 in held_out. This is expected for a 1,328-patient synthetic cohort and should be considered when interpreting AUROC/AUPRC estimates on those splits. ICU mortality (2 positives total) was evaluated and rejected as too sparse for reliable benchmarking.
 
 **`chartdate` precision:** Procedure ICD timestamps are resolved to `23:59:59` on the recorded date. This is a convention to avoid temporal leakage — the exact time of the procedure within the day is not available in the source data.
 
