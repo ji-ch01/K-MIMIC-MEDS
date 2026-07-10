@@ -33,17 +33,27 @@ CRITICAL_TABLES = {
 
 # Minimum required columns per table (subset check — extra columns are fine).
 EXPECTED_COLUMNS: dict[str, set[str]] = {
-    "syn_patients":        {"subject_id", "anchor_age", "anchor_year", "sex"},
+    "syn_patients":        {"subject_id", "anchor_age", "anchor_year", "sex", "dod"},
     "syn_admissions":      {"subject_id", "hadm_id", "admittime", "dischtime"},
+    "syn_transfers":       {"subject_id", "hadm_id"},
     "syn_icustays":        {"subject_id", "hadm_id", "stay_id", "intime", "outtime"},
-    "syn_chartevents":     {"subject_id", "hadm_id", "stay_id", "itemid", "charttime", "valuenum"},
-    "syn_labevents":       {"subject_id", "hadm_id", "itemid", "charttime", "valuenum"},
+    "syn_chartevents":     {"subject_id", "hadm_id", "stay_id", "itemid", "charttime", "valuenum", "valueuom"},
+    "syn_labevents":       {"subject_id", "hadm_id", "itemid", "charttime", "valuenum", "valueuom"},
     "syn_diagnoses_icd":   {"subject_id", "hadm_id", "icd_code"},
     "syn_procedures_icd":  {"subject_id", "hadm_id", "icd_code", "chartdate"},
-    "syn_inputevents":     {"subject_id", "hadm_id", "itemid", "starttime", "amount"},
-    "syn_outputevents":    {"subject_id", "hadm_id", "itemid", "charttime"},
-    "syn_procedureevents": {"subject_id", "hadm_id", "stay_id", "itemid", "starttime"},
+    "syn_inputevents":     {"subject_id", "hadm_id", "itemid", "starttime", "amount", "amountuom"},
+    "syn_outputevents":    {"subject_id", "hadm_id", "itemid", "charttime", "value", "valueuom"},
+    "syn_procedureevents": {"subject_id", "hadm_id", "stay_id", "itemid", "starttime", "endtime"},
     "syn_emar":            {"subject_id", "hadm_id", "itemid", "charttime"},
+    "syn_emar_detail":     {"subject_id", "hadm_id"},
+    "syn_d_items":         {"itemid"},
+    "syn_d_labitems":      {"itemid"},
+}
+
+# Some source tables use icustay_id instead of stay_id. Require at least one.
+ALTERNATIVE_COLUMNS: dict[str, list[set[str]]] = {
+    "syn_inputevents":  [{"stay_id", "icustay_id"}],
+    "syn_outputevents": [{"stay_id", "icustay_id"}],
 }
 
 
@@ -94,6 +104,65 @@ def build_all_id_maps(raw: dict) -> tuple:
     return subject_map, hadm_map, stay_map
 
 
+def _extend_id_map(id_map: dict, values, name: str) -> None:
+    """Add IDs to a UUID -> int64 map, checking for hash collisions."""
+    reverse = {int_id: raw_id for raw_id, int_id in id_map.items()}
+
+    for value in pd.Series(list(values)).dropna().unique():
+        if value in id_map:
+            continue
+
+        int_id = uuid_to_int(value)
+        if int_id in reverse and reverse[int_id] != value:
+            raise ValueError(
+                f"SHA-256 int64 collision detected in {name} ID mapping: "
+                f"{value!r} and {reverse[int_id]!r} both map to {int_id}. "
+                "Verify the source UUID format has not changed."
+            )
+
+        id_map[value] = int_id
+        reverse[int_id] = value
+
+
+def register_table_ids(
+    df: pd.DataFrame,
+    subject_map: dict,
+    hadm_map: dict,
+    stay_map: dict,
+) -> None:
+    """Update lazy UUID -> int64 maps from the ID columns present in one table."""
+    if "subject_id" in df.columns:
+        _extend_id_map(subject_map, df["subject_id"].dropna().unique(), "subject")
+    if "hadm_id" in df.columns:
+        _extend_id_map(hadm_map, df["hadm_id"].dropna().unique(), "hadm")
+    for col in ["stay_id", "icustay_id"]:
+        if col in df.columns:
+            _extend_id_map(stay_map, df[col].dropna().unique(), "stay")
+
+
+def validate_input_schema(name: str, df: pd.DataFrame) -> None:
+    """Validate required columns for a source table before transformation."""
+    found = set(df.columns)
+    required = EXPECTED_COLUMNS.get(name, set())
+    missing = sorted(required - found)
+
+    missing_alternatives = []
+    for alternatives in ALTERNATIVE_COLUMNS.get(name, []):
+        if found.isdisjoint(alternatives):
+            missing_alternatives.append("/".join(sorted(alternatives)))
+
+    if missing or missing_alternatives:
+        messages = []
+        if missing:
+            messages.append(f"missing required columns: {missing}")
+        if missing_alternatives:
+            messages.append(f"missing one of: {missing_alternatives}")
+        raise ValueError(
+            f"Table '{name}' schema validation failed ({'; '.join(messages)}). "
+            f"Found columns: {sorted(df.columns)}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Loader
 # ---------------------------------------------------------------------------
@@ -113,7 +182,7 @@ def coerce_datetime(series: pd.Series, label: str = "") -> pd.Series:
     Prints a warning if any non-null values could not be parsed.
     """
     before = series.notna().sum()
-    result = pd.to_datetime(series, errors="coerce")
+    result = pd.to_datetime(series, errors="coerce", format="mixed").astype("datetime64[us]")
     lost = int(before - result.notna().sum())
     if lost > 0:
         tag = f" ({label})" if label else ""
@@ -323,39 +392,25 @@ XLSX_FILES = [
 def run(input_dir: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Load all raw xlsx files
-    print("Loading raw xlsx files...")
-    raw: dict = {}
+    # 1. Check source files before writing any output
+    print("Checking raw xlsx files...")
     for name in XLSX_FILES:
         path = input_dir / f"{name}.xlsx"
         if path.exists():
-            raw[name] = read_xlsx(path)
-        elif name in CRITICAL_TABLES:
+            continue
+        if name in CRITICAL_TABLES:
             raise FileNotFoundError(
                 f"Critical table '{name}.xlsx' not found in {input_dir}. "
                 "This table is required — the MEDS output would be invalid without it."
             )
-        else:
-            print(f"  WARNING: {name}.xlsx not found (optional table), skipping.")
+        print(f"  WARNING: {name}.xlsx not found (optional table), skipping.")
 
-    # 2. Validate required columns before any transformation
-    print("Validating input schemas...")
-    for name, df in raw.items():
-        required = EXPECTED_COLUMNS.get(name, set())
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Table '{name}' is missing required columns: {sorted(missing)}. "
-                f"Found columns: {sorted(df.columns)}"
-            )
-    print("  Schema validation passed.")
+    # 2. Transform and write each table. UUID -> int64 is stateless, so maps
+    # can be filled lazily while preserving collision checks.
+    print("Loading, validating, transforming, and writing tables...")
+    subject_map, hadm_map, stay_map = {}, {}, {}
 
-    # 3. Build UUID → int64 maps from all tables
-    print("Building ID maps...")
-    subject_map, hadm_map, stay_map = build_all_id_maps(raw)
-
-    # 4. Transform and write each table
-    print("Transforming tables...")
+    # 3. Table-specific transforms close over the lazy maps above.
     transforms = {
         "syn_patients":        lambda df: transform_patients(df, subject_map),
         "syn_admissions":      lambda df: transform_admissions(df, subject_map, hadm_map),
@@ -374,13 +429,25 @@ def run(input_dir: Path, output_dir: Path) -> None:
         "syn_d_labitems":      lambda df: transform_d_labitems(df),
     }
 
-    for name, df in raw.items():
-        if name in transforms:
-            print(f"  transforming {name}...")
-            out = transforms[name](df)
-            out_path = output_dir / f"{name}.parquet"
-            out.to_parquet(out_path, index=False)
-            print(f"    -> {out_path.name} ({len(out)} rows)")
+    for name in XLSX_FILES:
+        path = input_dir / f"{name}.xlsx"
+        if not path.exists():
+            continue
+
+        df = read_xlsx(path)
+        validate_input_schema(name, df)
+        register_table_ids(df, subject_map, hadm_map, stay_map)
+
+        if name not in transforms:
+            continue
+
+        print(f"  transforming {name}...")
+        out = transforms[name](df)
+        out_path = output_dir / f"{name}.parquet"
+        out.to_parquet(out_path, index=False)
+        print(f"    -> {out_path.name} ({len(out)} rows)")
+
+    print(f"  ID maps: {len(subject_map)} subjects, {len(hadm_map)} hadm, {len(stay_map)} stays - no collisions")
 
     print("Pre-MEDS done.")
 

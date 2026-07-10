@@ -36,7 +36,7 @@ build/
 .installed.cfg
 
 # Virtual environments
-kmimics
+kmimic
 
 # IDE
 .vscode/
