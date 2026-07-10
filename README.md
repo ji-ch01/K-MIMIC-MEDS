@@ -81,6 +81,7 @@ K-MIMIC-MEDS/
 │       └── utils/
 │           └── io.py
 ├── tests/
+│   ├── test_extract_labels.py            # Mortality label extraction tests
 │   ├── test_pre_meds.py                  # Pre-MEDS unit and smoke tests
 │   └── test_meds_convert.py              # MEDS conversion unit tests
 ├── bootstrap.py                          # Bootstrap CI computation for benchmark metrics
@@ -198,7 +199,7 @@ Expected result: **46/46 checks passed**.
 pytest tests/ -v
 ```
 
-Expected result: **75/75 tests passed**.
+Expected result: **78/78 tests passed**.
 
 ### Step 5 — Extract task labels
 
