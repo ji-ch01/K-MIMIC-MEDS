@@ -22,6 +22,14 @@ experiments/lane_a/results/
 !experiments/lane_b/results/*.json
 !experiments/lane_b/features/kmimic/*.parquet
 
+# Local Lane B scratch analyses not retained in the paper benchmark
+experiments/lane_b/baselines.py
+experiments/lane_b/calibration_plots.py
+experiments/lane_b/results/calibration_metrics.json
+experiments/lane_b/results/calibration_plots.png
+experiments/lane_b/results/metrics_lr.json
+experiments/lane_b/results/predictions_lr_kmimic_within.parquet
+
 # Python
 __pycache__/
 *.py[cod]
