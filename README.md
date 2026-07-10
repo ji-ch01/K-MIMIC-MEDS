@@ -81,7 +81,8 @@ K-MIMIC-MEDS/
 │       └── utils/
 │           └── io.py
 ├── tests/
-│   └── test_meds_convert.py              # 71 unit tests
+│   ├── test_pre_meds.py                  # Pre-MEDS unit and smoke tests
+│   └── test_meds_convert.py              # MEDS conversion unit tests
 ├── bootstrap.py                          # Bootstrap CI computation for benchmark metrics
 ├── validation.ipynb                      # Validation notebook (24/24 checks + 3 extended sections)
 ├── validate.py                           # CLI validation script (46/46 checks)
@@ -194,10 +195,10 @@ Expected result: **46/46 checks passed**.
 **Option C — Unit tests** (for code correctness):
 
 ```bash
-pytest tests/test_meds_convert.py -v
+pytest tests/ -v
 ```
 
-Expected result: **71/71 tests passed**.
+Expected result: **75/75 tests passed**.
 
 ### Step 5 — Extract task labels
 
