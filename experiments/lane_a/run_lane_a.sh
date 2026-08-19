@@ -15,12 +15,8 @@ set -euo pipefail
 
 # ------------- paths (edit if needed) ---------------------------------------
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-KMIMIC_MEDS_DIR="$REPO_DIR/data/triplet_tensors"
 MIMIC_RAW_DIR="$REPO_DIR/data/MEDS_cohort"
-MIMIC_TENSOR_DIR="$REPO_DIR/data/mimic_triplet_tensors"
-
-TASK_KMIMIC="inhospital_mortality_24h"
-TASK_MIMIC="mortality/in_hospital/first_24h"
+MIMIC_TENSOR_DIR="$REPO_DIR/data/triplet_tensors"
 
 RESULTS_DIR="$REPO_DIR/experiments/lane_a/results"
 mkdir -p "$RESULTS_DIR"
@@ -41,27 +37,23 @@ else
 fi
 
 # ------------- Step 2: train on K-MIMIC ------------------------------------
+# All paths/task/output settings are hardcoded in kmimic_train.yaml itself.
 echo
 echo "[Step 2] Training on K-MIMIC (within-dataset)..."
 meds-torch-train \
     --config-dir "$REPO_DIR/experiments/lane_a/configs" \
     --config-name kmimic_train \
-    MEDS_cohort_dir="$KMIMIC_MEDS_DIR" \
-    task_name="$TASK_KMIMIC" \
-    output_dir="$RESULTS_DIR/kmimic" \
-    seed=42
+    'hydra.searchpath=[pkg://meds_torch.configs]'
 echo "[Step 2] Done. Results in $RESULTS_DIR/kmimic"
 
 # ------------- Step 3: train on MIMIC-IV ------------------------------------
+# All paths/task/output settings are hardcoded in mimic_train.yaml itself.
 echo
 echo "[Step 3] Training on MIMIC-IV..."
 meds-torch-train \
     --config-dir "$REPO_DIR/experiments/lane_a/configs" \
     --config-name mimic_train \
-    MEDS_cohort_dir="$MIMIC_TENSOR_DIR" \
-    task_name="$TASK_MIMIC" \
-    output_dir="$RESULTS_DIR/mimic" \
-    seed=42
+    'hydra.searchpath=[pkg://meds_torch.configs]'
 echo "[Step 3] Done. Results in $RESULTS_DIR/mimic"
 
 echo
