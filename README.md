@@ -42,11 +42,11 @@ The ETL code is packaged as a Python package (`kmimic_meds`) intended for public
 
 ## Project Structure
 
-```
+```text
 K-MIMIC-MEDS/
 ├── .github/
 │   └── workflows/
-│       └── tests.yml                     # GitHub Actions — runs pytest on push
+│       └── test.yml                      # GitHub Actions — runs pytest on push
 ├── data/
 │   ├── raw/                              # Raw K-MIMIC .xlsx files (not versioned)
 │   ├── intermediate/                     # Pre-MEDS Parquet files (not versioned)
@@ -88,6 +88,7 @@ K-MIMIC-MEDS/
 ├── validation.ipynb                      # Validation notebook (24/24 checks + 3 extended sections)
 ├── validate.py                           # CLI validation script (46/46 checks)
 ├── extract_labels.py                     # Label extraction — in-hospital mortality 24h (MEDS-DEV format)
+├── LICENSE                                # MIT License
 ├── pyproject.toml
 └── README.md
 ```
@@ -99,9 +100,43 @@ K-MIMIC-MEDS/
 ```bash
 git clone https://github.com/ji-ch01/K-MIMIC-MEDS.git
 cd K-MIMIC-MEDS
-pip install -e .
-pip install openpyxl
+pip install -e ".[dev,experiments]"
 ```
+
+`pandas`, `pyarrow`, `openpyxl`, and `pyyaml` (ETL core), `pytest`/`ruff` (`dev`), and `xgboost`/`scikit-learn` (`experiments`, needed for Lane B) are all installed by the command above. Lane A additionally requires `meds-torch` and `MEDS-transforms`, installed separately (see [Lane A](#lane-a--meds-native-meds-torch)) since they are not published as installable extras of this package.
+
+---
+
+## Reproduce All Results
+
+Assumes raw `.xlsx` files are already placed under `data/raw/` (see [Step 1](#step-1--place-raw-data)). Runs the full pipeline end-to-end, in order:
+
+```bash
+# ETL: raw .xlsx -> intermediate .parquet -> MEDS-compliant dataset
+python src/kmimic_meds/etl/pre_meds.py --input_dir data/raw --output_dir data/intermediate
+python src/kmimic_meds/etl/meds_convert.py --intermediate_dir data/intermediate --output_dir data/output
+
+# Validation: 46/46 checks (CLI) + 78/78 tests (unit)
+python validate.py --output_dir data/output
+pytest tests/ -v
+
+# Label extraction: in-hospital mortality at 24h
+python extract_labels.py
+
+# Lane B — XGBoost within-dataset + cross-cohort transfer (CPU, ~1 min)
+python experiments/lane_b/feature_extract.py
+python experiments/lane_b/train_xgb.py
+python bootstrap.py
+
+# Lane A — MEDS-native Transformer (meds-torch, requires: pip install meds-torch MEDS-transforms)
+python experiments/lane_a/preprocess_kmimic.py
+meds-torch-train \
+  --config-dir experiments/lane_a/configs \
+  --config-name kmimic_train \
+  'hydra.searchpath=[pkg://meds_torch.configs]'
+```
+
+Expected outputs: `data/output/` (MEDS dataset), `data/labels/inhospital_mortality_24h/` (labels), `experiments/lane_b/results/metrics.json` and `bootstrap_ci.json` (benchmark numbers reported in the [Results](#results) table below).
 
 ---
 
@@ -113,7 +148,7 @@ Download the Synthetic K-MIMIC dataset from [KHDP](https://khdp.net/database/dat
 
 Expected files:
 
-```
+```text
 data/raw/
 ├── syn_admissions.xlsx
 ├── syn_chartevents.xlsx
@@ -181,6 +216,7 @@ jupyter notebook validation.ipynb
 ```
 
 Expected result: **24/24 checks passed** (core summary), plus three extended validation sections:
+
 - §20 Source-to-MEDS coverage table (15 source tables audited)
 - §21 Code overlap analysis (204 exact codes, 20 families, 32 EDI parent codes; set `MIMIC_MEDS_DIR` to run cross-cohort comparison)
 - §22 Tensorisation timestamp smoke test (datetime64[us] round-trip verified, 74% of events have year > 2262)
@@ -211,16 +247,16 @@ python extract_labels.py
 
 Two candidate tasks are evaluated; **in-hospital mortality** is selected as the primary task:
 
-| Task | Cohort | Positives | Prevalence | Selected |
-|---|---|---|---|---|
-| `icu_mortality_24h` | 522 | 2 | 0.4% | No — too sparse |
-| `inhospital_mortality_24h` | 957 | 81 | 8.5% | **Yes** |
+| Task                        | Cohort | Positives | Prevalence | Selected         |
+| --------------------------- | ------ | --------- | ---------- | ---------------- |
+| `icu_mortality_24h`         | 522    | 2         | 0.4%       | No — too sparse  |
+| `inhospital_mortality_24h`  | 957    | 81        | 8.5%       | **Yes**          |
 
 **Definition:** prediction at hospital admission + 24h; label = `MEDS_DEATH` before `HOSPITAL_DISCHARGE`. Patients discharged or deceased within 24h of admission are excluded.
 
 Output:
 
-```
+```text
 data/labels/
 └── inhospital_mortality_24h/
     ├── train/0.parquet     ← 767 patients, 67 positives (8.7%)
@@ -265,12 +301,12 @@ python bootstrap.py                            # compute 95% CIs
 
 ### Results
 
-| Model | Train | AUROC | 95% CI | AUPRC | 95% CI |
-|---|---|---|---|---|---|
-| XGBoost | K-MIMIC | **0.810** | [0.631–0.960] | **0.505** | [0.116–0.826] |
-| XGBoost | MIMIC-IV→K-MIMIC | 0.674 | [0.418–0.900] | 0.287 | [0.066–0.617] |
-| meds-torch | K-MIMIC | 0.266 | — | 0.062 | — |
-| meds-torch+pw | K-MIMIC | 0.234 | — | — | — |
+| Model         | Train            | AUROC     | 95% CI        | AUPRC     | 95% CI        |
+| ------------- | ---------------- | --------- | ------------- | --------- | ------------- |
+| XGBoost       | K-MIMIC          | **0.810** | [0.631–0.960] | **0.505** | [0.116–0.826] |
+| XGBoost       | MIMIC-IV→K-MIMIC | 0.674     | [0.418–0.900] | 0.287     | [0.066–0.617] |
+| meds-torch    | K-MIMIC          | 0.266     | —             | 0.062     | —             |
+| meds-torch+pw | K-MIMIC          | 0.234     | —             | —         | —             |
 
 Bootstrap CIs (n=2000) on held-out set (102 patients, 8 positives). The 0.136 AUROC gap between within-dataset and transfer quantifies the vocabulary mismatch cost between MIMIC-IV item IDs and K-MIMIC EDI codes.
 
@@ -278,7 +314,7 @@ Bootstrap CIs (n=2000) on held-out set (102 patients, 8 positives). The 0.136 AU
 
 ## MEDS Output Format
 
-```
+```text
 data/output/
 ├── data/
 │   ├── train/0.parquet       ← 80% of patients
@@ -387,5 +423,7 @@ Each row in the data files follows the MEDS schema:
 ---
 
 ## License
+
+The ETL pipeline code in this repository is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
 The Synthetic K-MIMIC (SYN-ICU) dataset is provided by the **NSTRI Data Innovation Center** via the KHDP (Korean Health Data Platform) portal. Please refer to the [KHDP data usage terms](https://khdp.net/database/data-search-detail/SYN-ICU) before using this dataset. The pipeline code is independently developed and not affiliated with KHDP or NSTRI.
