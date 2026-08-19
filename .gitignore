@@ -1,82 +1,78 @@
-# Data — raw and intermediate files are not versioned
-data/raw/
-data/intermediate/
-data/output/
-data/labels/
-data/MEDS_cohort/
-data/triplet_tensors/
-data/kmimic_triplet_tensors/
-data/mimic_triplet_tensors/
-outputs/
-*.parquet
-*.xlsx
-
-# Experiments — MIMIC-derived features excluded (DUA compliance, large files)
-experiments/lane_b/features/mimic/
-# Model checkpoints (large binaries)
-*.ckpt
-experiments/lane_a/results/
-
-# Allow small versioned artifacts
-!experiments/lane_b/results/*.parquet
-!experiments/lane_b/results/*.json
-!experiments/lane_b/features/kmimic/*.parquet
-
-# Local Lane B scratch analyses not retained in the paper benchmark
-experiments/lane_b/baselines.py
-experiments/lane_b/calibration_plots.py
-experiments/lane_b/results/calibration_metrics.json
-experiments/lane_b/results/calibration_plots.png
-experiments/lane_b/results/metrics_lr.json
-experiments/lane_b/results/predictions_lr_kmimic_within.parquet
-
-# Python
+# Python bytecode and build artifacts
 __pycache__/
 *.py[cod]
-*.pyo
 *.pyd
-.Python
-*.egg
 *.egg-info/
-dist/
-build/
 .eggs/
-.installed.cfg
+build/
+dist/
 
 # Virtual environments
-kmimic
+.venv/
+venv/
+env/
+/kmimic/
 
-# IDE
+# Test, coverage, and log output
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.log
+.logs/
+
+# Editors and operating systems
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-.logs/
+# Local configuration and working files
+.env
+/.claude/
+/K_MIMIC_MEDS_Report/
+/tmp/
+/.upload_staging/
+/check.py
+/notes.txt
+/validation.ipynb.bak
+
+# Generated data and large tabular artifacts
+/data/raw/
+/data/intermediate/
+/data/output/
+/data/labels/
+/data/MEDS_cohort/
+/data/triplet_tensors/
+/data/kmimic_triplet_tensors/
+/data/mimic_triplet_tensors/
+/data/kmimic_shared_tensors/
+/outputs/
+*.parquet
+*.xlsx
 
 # MEDS-Extract intermediate artifacts
-shard_events/
-convert_to_subject_sharded/
-convert_to_MEDS_events/
-merge_to_MEDS_cohort/
+/shard_events/
+/convert_to_subject_sharded/
+/convert_to_MEDS_events/
+/merge_to_MEDS_cohort/
 
-# dotenv
-.env
+# Experiment outputs and model checkpoints
+*.ckpt
+/experiments/lane_a/results/
+/experiments/lane_b/features/mimic/
 
-# check.py file
-check.py
+# Keep the small Lane B benchmark artifacts that belong in version control.
+!experiments/lane_b/results/*.parquet
+!experiments/lane_b/results/*.json
+!experiments/lane_b/features/kmimic/*.parquet
 
-# notes.txt
-notes.txt
-
-.claude
-
-K_MIMIC_MEDS_Report
-tmp
-
+# Local Lane B scratch analyses
+/experiments/lane_b/baselines.py
+/experiments/lane_b/calibration_plots.py
+/experiments/lane_b/results/calibration_metrics.json
+/experiments/lane_b/results/calibration_plots.png
+/experiments/lane_b/results/metrics_lr.json
+/experiments/lane_b/results/predictions_lr_kmimic_within.parquet
