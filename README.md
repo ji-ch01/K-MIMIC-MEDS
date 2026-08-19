@@ -4,9 +4,7 @@ ETL pipeline to convert the **Synthetic K-MIMIC (SYN-ICU)** Korean ICU dataset i
 
 > **Paper:** *Synthetic K-MIMIC in MEDS: Validation and a Transportable Mortality Benchmark* — submitted to the SD4H Workshop @ ICML 2026.
 
-This project was developed as part of an internship at **[VitalLab](https://sites.google.com/vitaldb.net/vitallab-snucmsnuh/home)** — Department of Anesthesiology and Pain Medicine, Seoul National University College of Medicine / Seoul National University Hospital (SNUCM/SNUH) — under the supervision of Professor Hyung-Chul Lee and Professor Hyeonhoon Lee.
-
-The intern is a student at **Efrei Paris** (M2 Bioinformatics, Data Engineering & AI).
+This project was developed as part of an internship at **[VitalLab](https://sites.google.com/vitaldb.net/vitallab-snucmsnuh/home)** — Department of Anesthesiology and Pain Medicine, Seoul National University College of Medicine / Seoul National University Hospital (SNUCM/SNUH) — under the supervision of Professor Hyung-Chul Lee, Professor Hyeonhoon Lee and Professor Jaegyun Jung.
 
 This project is part of a research initiative to extend the MEDS ecosystem to non-English clinical datasets, starting with the Korean ICU synthetic dataset published by KHDP.
 
