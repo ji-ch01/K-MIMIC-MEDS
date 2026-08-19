@@ -52,23 +52,28 @@ K-MIMIC-MEDS/
 │   ├── intermediate/                     # Pre-MEDS Parquet files (not versioned)
 │   ├── output/                           # Final MEDS-compliant dataset (not versioned)
 │   ├── labels/                           # Extracted task labels in MEDS-DEV format (not versioned)
-│   └── kmimic_triplet_tensors/           # meds-torch NRT tensors (not versioned)
+│   ├── kmimic_triplet_tensors/           # meds-torch NRT tensors — K-MIMIC (not versioned)
+│   └── triplet_tensors/                  # meds-torch NRT tensors — MIMIC-IV (not versioned)
 ├── experiments/
 │   ├── lane_a/
 │   │   ├── preprocess_kmimic.py          # Standalone preprocessing pipeline → NRT tensors
 │   │   ├── configs/
 │   │   │   ├── kmimic_train.yaml         # meds-torch training config (K-MIMIC)
 │   │   │   └── mimic_train.yaml          # meds-torch training config (MIMIC-IV)
-│   │   └── run_lane_a.sh                 # End-to-end Lane A script
+│   │   ├── run_lane_a.sh                 # End-to-end Lane A script
+│   │   └── results/                      # Training results (not versioned)
+│   │       └── mimic/                    # MIMIC-IV run — checkpoints, hydra config, logs
 │   ├── lane_b/
 │   │   ├── feature_extract.py            # 24h feature extraction (77 K-MIMIC / 76 MIMIC-IV features)
 │   │   ├── train_xgb.py                  # XGBoost training — within and cross-cohort
+│   │   ├── vocab_mapping_ablation.py     # Vocabulary-mapping coverage ablation (3 strategies)
 │   │   ├── features/
 │   │   │   ├── kmimic/                   # K-MIMIC feature matrices (versioned)
 │   │   │   └── mimic/                    # MIMIC-IV feature matrices (not versioned — DUA)
 │   │   ├── results/
 │   │   │   ├── metrics.json              # AUROC / AUPRC / Brier point estimates
 │   │   │   ├── bootstrap_ci.json         # 95% bootstrap CIs (n=2000)
+│   │   │   ├── vocab_mapping_ablation.json
 │   │   │   ├── predictions_kmimic_within.parquet
 │   │   │   └── predictions_mimic_to_kmimic.parquet
 │   │   └── run_lane_b.sh                 # End-to-end Lane B script
@@ -287,7 +292,9 @@ meds-torch-train \
   'hydra.searchpath=[pkg://meds_torch.configs]'
 ```
 
-**Result:** Both configurations (no reweighting and pos_weight=10.8) fail to learn a useful ranking signal (AUROC 0.266 / 0.234), consistent with known deep learning limitations on small clinical cohorts (~65 positive training examples). This constitutes an informative lower bound motivating feature-based methods.
+**Result:** The transformer, trained and evaluated within K-MIMIC, reaches **AUROC 0.568 / AUPRC 0.140** — below the XGBoost within-dataset result on the same held-out split, consistent with a small transformer learning a weaker signal from only 767 training patients. Checkpoint selection uses a tuning split with only 6 positive cases; across 5 seeds (identical data/code) held-out AUROC ranged **0.552–0.606**, ruling out a polarity/ordering bug but underlining that any single point estimate here is fragile (see [Known Limitations](#known-limitations)).
+
+A separate run trained and evaluated within MIMIC-IV (291k patients, GPU pod) reaches AUROC 0.725 / AUPRC 0.089 on its own held-out set — confirming the pipeline runs end-to-end at MIMIC-IV's scale — but this uses a different cohort/held-out set, so it is **not** directly comparable to the K-MIMIC number above and is not in the table below. Cross-cohort transfer with this architecture (the transformer analogue of the XGBoost transfer row) has not been run yet.
 
 ### Lane B — Cross-cohort transfer (XGBoost)
 
@@ -305,10 +312,23 @@ python bootstrap.py                            # compute 95% CIs
 | ------------- | ---------------- | --------- | ------------- | --------- | ------------- |
 | XGBoost       | K-MIMIC          | **0.810** | [0.631–0.960] | **0.505** | [0.116–0.826] |
 | XGBoost       | MIMIC-IV→K-MIMIC | 0.674     | [0.418–0.900] | 0.287     | [0.066–0.617] |
-| meds-torch    | K-MIMIC          | 0.266     | —             | 0.062     | —             |
-| meds-torch+pw | K-MIMIC          | 0.234     | —             | —         | —             |
+| meds-torch    | K-MIMIC          | 0.568     | —             | 0.140     | —             |
 
 Bootstrap CIs (n=2000) on held-out set (102 patients, 8 positives). The 0.136 AUROC gap between within-dataset and transfer quantifies the vocabulary mismatch cost between MIMIC-IV item IDs and K-MIMIC EDI codes.
+
+**Vocabulary-mapping ablation:** quantifies how much of the 204-code K-MIMIC vocabulary the cross-cohort transfer benchmark actually covers.
+
+```bash
+python experiments/lane_b/vocab_mapping_ablation.py
+```
+
+| Strategy                       | Codes matched | Coverage |
+| ----------------------------- | ------------- | -------- |
+| Naive item-ID match           | 0             | 0.0%     |
+| Naive English-label match     | 3             | 1.5%     |
+| Concept crosswalk (used here) | 11            | 5.4%     |
+
+CPU-only, runs against ETL metadata already produced above (no MIMIC-IV features needed). Of the 11 codes used by the crosswalk, only 3 (WBC, haemoglobin, glucose) are anchored by a coded standard on both sides (EDI ↔ LOINC); the other 8 are vital signs aligned by clinical judgement alone. Details in `experiments/lane_b/results/vocab_mapping_ablation.json`.
 
 ---
 
@@ -404,6 +424,8 @@ Each row in the data files follows the MEDS schema:
 **`MEDS_DEATH` temporal precision:** The `dod` field in K-MIMIC is stored as a date only (midnight, `00:00:00`). When `admissions.deathtime` is available (88 out of 88 deceased patients), the pipeline uses that field instead, providing hour-level precision. For patients where `deathtime` is absent, `dod` midnight is used as a fallback. The temporal consistency check applies a 48-hour tolerance window and excludes `PROCEDURE_START`/`PROCEDURE_END` events, which are a known artifact of the synthetic data generation process.
 
 **Missing `MEDS_BIRTH` events:** 79 out of 1,328 patients have no `MEDS_BIRTH` event because `anchor_age` is `NaN` in the source `syn_patients` table — making it impossible to compute `year_of_birth`. These patients are fully retained in the dataset with all their other events (79,165 total).
+
+**Transformer checkpoint selection on a tiny validation split:** The K-MIMIC tuning split used for early stopping and checkpoint selection has only 6 positive cases (of 88 patients). Across five training seeds with identical data and code, held-out AUROC ranged 0.552–0.606. This is treated as expected variance from the small positive count rather than a training bug, but the single point estimate in the [Results](#results) table should not be read as a stable number.
 
 **Label sparsity in smaller splits:** The in-hospital mortality task has 6 positives in the tuning split and 8 in held_out. This is expected for a 1,328-patient synthetic cohort and should be considered when interpreting AUROC/AUPRC estimates on those splits. ICU mortality (2 positives total) was evaluated and rejected as too sparse for reliable benchmarking.
 

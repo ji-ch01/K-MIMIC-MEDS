@@ -67,43 +67,6 @@ def uuid_to_int(uuid_str: str) -> int:
     return int.from_bytes(h[:8], "big") & 0x7FFFFFFFFFFFFFFF
 
 
-def build_all_id_maps(raw: dict) -> tuple:
-    """
-    Scan all loaded DataFrames and build stable UUID→int64 maps
-    for subject_id, hadm_id, and stay_id (including icustay_id).
-    Returns (subject_map, hadm_map, stay_map).
-    """
-    subject_uuids, hadm_uuids, stay_uuids = set(), set(), set()
-
-    for df in raw.values():
-        if "subject_id" in df.columns:
-            subject_uuids.update(df["subject_id"].dropna().unique())
-        if "hadm_id" in df.columns:
-            hadm_uuids.update(df["hadm_id"].dropna().unique())
-        for col in ["stay_id", "icustay_id"]:
-            if col in df.columns:
-                stay_uuids.update(df[col].dropna().unique())
-
-    subject_map = {v: uuid_to_int(v) for v in subject_uuids}
-    hadm_map    = {v: uuid_to_int(v) for v in hadm_uuids}
-    stay_map    = {v: uuid_to_int(v) for v in stay_uuids}
-
-    # Verify no SHA-256 collision after UUID → int64 conversion.
-    # This is a production safety invariant — never disable with -O.
-    for name, id_map in [("subject", subject_map), ("hadm", hadm_map), ("stay", stay_map)]:
-        int_ids = list(id_map.values())
-        if len(int_ids) != len(set(int_ids)):
-            raise ValueError(
-                f"SHA-256 int64 collision detected in {name} ID mapping "
-                f"({len(int_ids)} UUIDs → {len(set(int_ids))} unique ints). "
-                "This should never happen for datasets of this size. "
-                "Verify the source UUID format has not changed."
-            )
-
-    print(f"  ID maps: {len(subject_map)} subjects, {len(hadm_map)} hadm, {len(stay_map)} stays — no collisions")
-    return subject_map, hadm_map, stay_map
-
-
 def _extend_id_map(id_map: dict, values, name: str) -> None:
     """Add IDs to a UUID -> int64 map, checking for hash collisions."""
     reverse = {int_id: raw_id for raw_id, int_id in id_map.items()}
