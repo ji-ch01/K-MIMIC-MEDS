@@ -23,4 +23,4 @@ jobs:
           pip install pytest
 
       - name: Run unit tests
-        run: pytest tests/test_meds_convert.py -v
+        run: pytest tests/ -v

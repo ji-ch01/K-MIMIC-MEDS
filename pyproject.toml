@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "ETL pipeline to convert Synthetic K-MIMIC ICU data to the MEDS format"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
 
 
 authors = [
@@ -51,9 +52,9 @@ experiments = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/<your-username>/K-MIMIC-MEDS"
-Repository = "https://github.com/<your-username>/K-MIMIC-MEDS"
-Issues = "https://github.com/<your-username>/K-MIMIC-MEDS/issues"
+Homepage = "https://github.com/ji-ch01/K-MIMIC-MEDS"
+Repository = "https://github.com/ji-ch01/K-MIMIC-MEDS"
+Issues = "https://github.com/ji-ch01/K-MIMIC-MEDS/issues"
 
 [project.scripts]
 kmimic-pre-meds = "kmimic_meds.etl.pre_meds:main"
