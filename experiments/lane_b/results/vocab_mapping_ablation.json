@@ -1,0 +1,170 @@
+{
+  "n_kmimic_codes": 204,
+  "strategies": {
+    "naive_itemid": {
+      "description": "Exact string match on bare item ID (K-MIMIC local ID vs MIMIC-IV itemid).",
+      "n_kmimic_codes_matched": 0,
+      "coverage_pct_of_204": 0.0,
+      "matched_itemids": []
+    },
+    "naive_label_text": {
+      "description": "Case-insensitive whole-word containment of the K-MIMIC English abbreviation in a MIMIC-IV lab (LOINC) description. No clinical review; candidates are not disambiguated.",
+      "n_kmimic_codes_with_text_label": 101,
+      "n_kmimic_codes_matched": 3,
+      "coverage_pct_of_204": 1.5,
+      "mean_mimic_candidates_per_match": 1.0,
+      "matches": [
+        {
+          "kmimic_code": "CHARTEVENT//001C_1838_24465//L/min",
+          "eng_abbrev": "flow rate",
+          "n_mimic_candidates": 1,
+          "mimic_candidates": [
+            "LAB//50815//L/min"
+          ]
+        },
+        {
+          "kmimic_code": "LAB//001L2021//fL",
+          "eng_abbrev": "mcv",
+          "n_mimic_candidates": 1,
+          "mimic_candidates": [
+            "LAB//51250//fL"
+          ]
+        },
+        {
+          "kmimic_code": "LAB//001L2022//pg",
+          "eng_abbrev": "mch",
+          "n_mimic_candidates": 1,
+          "mimic_candidates": [
+            "LAB//51248//pg"
+          ]
+        }
+      ]
+    },
+    "edi_concept_crosswalk": {
+      "description": "Expert-curated clinical-concept crosswalk (concepts.yaml), the strategy actually used for the Lane B benchmark. Codes are aligned by clinical meaning, not by an automated code-to-code mapping.",
+      "n_concepts": 9,
+      "n_kmimic_codes_used": 11,
+      "coverage_pct_of_204": 5.4,
+      "n_kmimic_codes_anchored_by_edi": 3,
+      "n_kmimic_codes_vitals_only_no_coded_standard": 8,
+      "mimic_side": {
+        "n_concepts": 9,
+        "n_anchored_by_loinc": 3,
+        "n_absent_from_code_catalog": 6
+      },
+      "concepts": [
+        {
+          "concept": "heart_rate",
+          "kmimic_codes": [
+            "CHARTEVENT//001C_1021_25105///min"
+          ],
+          "kmimic_anchored_by_edi": false,
+          "mimic_codes": [
+            "LAB//220045"
+          ],
+          "mimic_found_in_catalog": false,
+          "mimic_anchored_by_loinc": false
+        },
+        {
+          "concept": "respiratory_rate",
+          "kmimic_codes": [
+            "CHARTEVENT//001C_1023_27310///min"
+          ],
+          "kmimic_anchored_by_edi": false,
+          "mimic_codes": [
+            "LAB//220210"
+          ],
+          "mimic_found_in_catalog": false,
+          "mimic_anchored_by_loinc": false
+        },
+        {
+          "concept": "temperature",
+          "kmimic_codes": [
+            "CHARTEVENT//001C_1026_26520//Cel"
+          ],
+          "kmimic_anchored_by_edi": false,
+          "mimic_codes": [
+            "LAB//223761",
+            "LAB//223762"
+          ],
+          "mimic_found_in_catalog": false,
+          "mimic_anchored_by_loinc": false
+        },
+        {
+          "concept": "systolic_bp",
+          "kmimic_codes": [
+            "CHARTEVENT//001C_1012_24795//mmHg",
+            "CHARTEVENT//001C_1015_24795//mmHg"
+          ],
+          "kmimic_anchored_by_edi": false,
+          "mimic_codes": [
+            "LAB//220179"
+          ],
+          "mimic_found_in_catalog": false,
+          "mimic_anchored_by_loinc": false
+        },
+        {
+          "concept": "diastolic_bp",
+          "kmimic_codes": [
+            "CHARTEVENT//001C_1013_25640//mmHg",
+            "CHARTEVENT//001C_1016_25640//mmHg"
+          ],
+          "kmimic_anchored_by_edi": false,
+          "mimic_codes": [
+            "LAB//220180"
+          ],
+          "mimic_found_in_catalog": false,
+          "mimic_anchored_by_loinc": false
+        },
+        {
+          "concept": "spo2",
+          "kmimic_codes": [
+            "CHARTEVENT//001C_1003_24480//%"
+          ],
+          "kmimic_anchored_by_edi": false,
+          "mimic_codes": [
+            "LAB//220277"
+          ],
+          "mimic_found_in_catalog": false,
+          "mimic_anchored_by_loinc": false
+        },
+        {
+          "concept": "wbc",
+          "kmimic_codes": [
+            "LAB//001L2001//x10e3/uL"
+          ],
+          "kmimic_anchored_by_edi": true,
+          "mimic_codes": [
+            "LAB//51301"
+          ],
+          "mimic_found_in_catalog": true,
+          "mimic_anchored_by_loinc": true
+        },
+        {
+          "concept": "hemoglobin",
+          "kmimic_codes": [
+            "LAB//001L2003//g/dL"
+          ],
+          "kmimic_anchored_by_edi": true,
+          "mimic_codes": [
+            "LAB//51222"
+          ],
+          "mimic_found_in_catalog": true,
+          "mimic_anchored_by_loinc": true
+        },
+        {
+          "concept": "glucose",
+          "kmimic_codes": [
+            "LAB//001L3005//mg/dL"
+          ],
+          "kmimic_anchored_by_edi": true,
+          "mimic_codes": [
+            "LAB//50931"
+          ],
+          "mimic_found_in_catalog": true,
+          "mimic_anchored_by_loinc": true
+        }
+      ]
+    }
+  }
+}
